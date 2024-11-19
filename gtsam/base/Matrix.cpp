@@ -31,6 +31,7 @@
 #include <limits>
 #include <iostream>
 #include <iterator>
+#include <cassert>
 
 using namespace std;
 

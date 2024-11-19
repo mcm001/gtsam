@@ -29,6 +29,7 @@
 #include <gtsam/base/concepts.h>
 #include <gtsam/config.h> // Get GTSAM_USE_QUATERNIONS macro
 
+#include <cassert>
 #include <random>
 
 // You can override the default coordinate mode using this flag
