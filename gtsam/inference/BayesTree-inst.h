@@ -188,6 +188,38 @@ namespace gtsam {
    */
   template<class CLIQUE>
   BayesTree<CLIQUE>::~BayesTree() {
+#define USE_OLD_DTOR 1
+#if USE_OLD_DTOR
+    /* Because tree nodes are hold by both root_ and nodes_, we need to clear nodes_ manually first and
+     * reduce the reference count of each node by 1. Otherwise, the nodes will not be properly deleted
+     * during the BFS process.
+     */
+    nodes_.clear();
+    for (auto&& root: roots_) {
+      std::queue<sharedClique> bfs_queue;
+      
+      // first, move the root to the queue
+      bfs_queue.push(root);
+      root = nullptr; // now the root node is owned by the queue
+
+      // do a BFS on the tree, for each node, add its children to the queue, and then delete it from the queue
+      // So if the reference count of the node is 1, it will be deleted, and because its children are in the queue,
+      // the deletion of the node will not trigger a recursive deletion of the children.
+      while (!bfs_queue.empty()) {
+        // move the ownership of the front node from the queue to the current variable
+        auto current = bfs_queue.front();
+        bfs_queue.pop();
+
+        // add the children of the current node to the queue, so that the queue will also own the children nodes.
+        for (auto child: current->children) {
+          bfs_queue.push(child);
+        } // leaving the scope of current will decrease the reference count of the current node by 1, and if the reference count is 0,
+          // the node will be deleted. Because the children are in the queue, the deletion of the node will not trigger a recursive
+          // deletion of the children.
+      }
+    }
+
+#else
     /* Because tree nodes are hold by both root_ and nodes_, we need to clear nodes_ manually first and
      * reduce the reference count of each node by 1. Otherwise, the nodes will not be properly deleted
      * during the BFS process.
@@ -215,6 +247,7 @@ namespace gtsam {
           // deletion of the children.
       }
     }
+#endif
   }
 
   /* ************************************************************************* */
