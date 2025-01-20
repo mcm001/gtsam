@@ -9,6 +9,7 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/PriorFactor.h>
 #include <gtsam/nonlinear/Values.h>
+#include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PlanarProjectionFactor.h>
 
 #include <random>
@@ -21,20 +22,29 @@ using symbol_shorthand::L;
 using symbol_shorthand::X;
 
 int main() {
-  // Example localization
+  // Pixel noise, in pixels, uv
   SharedNoiseModel pxModel = noiseModel::Diagonal::Sigmas(Vector2(1, 1));
-  // pose model is wide, so the solver finds the right answer.
-  SharedNoiseModel xNoise = noiseModel::Diagonal::Sigmas(Vector3(10, 10, 10));
+  // Pose between factor noise -- x, y, theta
+  noiseModel::Diagonal::shared_ptr model =
+      noiseModel::Diagonal::Sigmas(Vector3(0.2, 0.2, 0.1));
 
   // landmarks
-  Point3 l0(1, 0.1, 1);
-  Point3 l1(1, -0.1, 1);
+  std::vector<Point3> tagPoints{
+      Point3{2.5, 0 - 0.08255, 0.5 - 0.08255},
+      Point3{2.5, 0 - 0.08255, 0.5 + 0.08255},
+      Point3{2.5, 0 + 0.08255, 0.5 + 0.08255},
+      Point3{2.5, 0 + 0.08255, 0.5 - 0.08255},
+  };
 
   // camera pixels
-  Point2 p0(180, 0);
-  Point2 p1(220, 0);
+  std::vector<Point2> observations{
+      Point2{333, -17},
+      Point2{333, -83},
+      Point2{267, -83},
+      Point2{267, -17},
+  };
 
-  // body
+  // Initial guess for world2body
   Pose2 x0(0, 0, 0);
 
   // camera z looking at +x with (xy) antiparallel to (yz)
@@ -42,26 +52,47 @@ int main() {
                 -1, 0, 0,   //
                 0, -1, 0),  //
            Vector3(0, 0, 0));
-  Cal3DS2 calib(200, 200, 0, 200, 200, 0, 0);
+  Cal3DS2 calib(600, 600, 0, 300, 150, 0, 0);
 
   ISAM2Params parameters;
-  parameters.relinearizeThreshold = 0.01;
+  // parameters.relinearizeThreshold = 0.1;
   parameters.relinearizeSkip = 1;
-  auto p = ISAM2DoglegParams();
-  p.setVerbose(true);
-  parameters.optimizationParams = p;
+
+  // auto p = ISAM2DoglegParams();
+  // p.setVerbose(false);
+  // parameters.optimizationParams = p;
+
   ISAM2 isam(parameters);
 
-  {
+  for (int i = 0; i < 20; i++) {
+    cout << "========================" << endl << "Iteration " << i << endl;
+
     NonlinearFactorGraph graph;
-    graph.add(PlanarProjectionFactor1(X(0), l0, p0, c0, calib, pxModel));
-    graph.add(PlanarProjectionFactor1(X(0), l1, p1, c0, calib, pxModel));
-    graph.add(PriorFactor<Pose2>(X(0), x0, xNoise));
-
     Values initialEstimate;
-    initialEstimate.insert(X(0), x0);
 
+    for (int j = 0; j < 4; j++) {
+      graph.add(PlanarProjectionFactor1(X(i), tagPoints[j], observations[j], c0,
+                                        calib, pxModel));
+    }
+
+    if (i != 0) {
+      graph.emplace_shared<BetweenFactor<Pose2>>(X(i - 1), X(i), Pose2(0, 0, 0),
+                                                 model);
+
+      initialEstimate.insert(X(i), isam.calculateEstimate(X(i-1)).cast<Pose2>());
+    } else {
+      initialEstimate.insert(X(i), x0);
+    }
+    
+
+    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     isam.update(graph, initialEstimate);
-    isam.calculateEstimate(X(0)).print("X(0)=");
+    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
+    
+    isam.calculateEstimate().print("");
+
+    chrono::duration<double, std::micro> timeUsed1 = t2 - t1;
+    cout << "Number of factors: " << isam.size() << " time used (us) "
+         << timeUsed1.count() << endl;
   }
 }
