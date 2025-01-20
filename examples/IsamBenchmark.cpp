@@ -22,6 +22,13 @@ using symbol_shorthand::L;
 using symbol_shorthand::X;
 
 int main() {
+  // white nose generation
+  std::random_device rd{};
+  std::mt19937 gen{rd()};
+  double mean = 0.0;
+  double stddev = 1.0;
+  std::normal_distribution<double> dist(mean, stddev);
+
   // Pixel noise, in pixels, uv
   SharedNoiseModel pxModel = noiseModel::Diagonal::Sigmas(Vector2(1, 1));
   // Pose between factor noise -- x, y, theta
@@ -56,7 +63,7 @@ int main() {
 
   ISAM2Params parameters;
   // parameters.relinearizeThreshold = 0.1;
-  parameters.relinearizeSkip = 1;
+  // parameters.relinearizeSkip = 5;
 
   // auto p = ISAM2DoglegParams();
   // p.setVerbose(false);
@@ -64,35 +71,44 @@ int main() {
 
   ISAM2 isam(parameters);
 
-  for (int i = 0; i < 20; i++) {
-    cout << "========================" << endl << "Iteration " << i << endl;
+  size_t numFactors = 0;
+
+  cout << "iteration,Num factors,time_us" << endl;
+  for (int i = 0; i < 50 * 1000; i++) {
+    // cout << "========================" << endl << "Iteration " << i << endl;
 
     NonlinearFactorGraph graph;
     Values initialEstimate;
 
     for (int j = 0; j < 4; j++) {
-      graph.add(PlanarProjectionFactor1(X(i), tagPoints[j], observations[j], c0,
-                                        calib, pxModel));
+      graph.add(PlanarProjectionFactor1(
+          X(i), tagPoints[j], observations[j] + Point2{dist(gen), dist(gen)},
+          c0, calib, pxModel));
     }
 
     if (i != 0) {
       graph.emplace_shared<BetweenFactor<Pose2>>(X(i - 1), X(i), Pose2(0, 0, 0),
                                                  model);
 
-      initialEstimate.insert(X(i), isam.calculateEstimate(X(i-1)).cast<Pose2>());
+      initialEstimate.insert(X(i),
+                             isam.calculateEstimate(X(i - 1)).cast<Pose2>());
     } else {
       initialEstimate.insert(X(i), x0);
     }
-    
+
+    numFactors += graph.size();
 
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     isam.update(graph, initialEstimate);
     chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-    
-    isam.calculateEstimate().print("");
+
+    // isam.calculateEstimate().print("");
 
     chrono::duration<double, std::micro> timeUsed1 = t2 - t1;
-    cout << "Number of factors: " << isam.size() << " time used (us) "
-         << timeUsed1.count() << endl;
+    
+    // print basically once per second at 100hz odometry
+    if (i % 100 == 0) {
+      cout << i << "," << numFactors << "," << timeUsed1.count() << endl;
+    }
   }
 }

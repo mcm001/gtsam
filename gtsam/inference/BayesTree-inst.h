@@ -188,7 +188,7 @@ namespace gtsam {
    */
   template<class CLIQUE>
   BayesTree<CLIQUE>::~BayesTree() {
-#define USE_OLD_DTOR 1
+#define USE_OLD_DTOR 0
 #if USE_OLD_DTOR
     /* Because tree nodes are hold by both root_ and nodes_, we need to clear nodes_ manually first and
      * reduce the reference count of each node by 1. Otherwise, the nodes will not be properly deleted
@@ -218,7 +218,6 @@ namespace gtsam {
           // deletion of the children.
       }
     }
-
 #else
     /* Because tree nodes are hold by both root_ and nodes_, we need to clear nodes_ manually first and
      * reduce the reference count of each node by 1. Otherwise, the nodes will not be properly deleted
@@ -240,7 +239,7 @@ namespace gtsam {
         bfs_queue.pop();
 
         // add the children of the current node to the queue, so that the queue will also own the children nodes.
-        for (auto&& child: current->children) {
+        for (auto child: current->children) {
           bfs_queue.push(std::move(child));
         } // leaving the scope of current will decrease the reference count of the current node by 1, and if the reference count is 0,
           // the node will be deleted. Because the children are in the queue, the deletion of the node will not trigger a recursive
