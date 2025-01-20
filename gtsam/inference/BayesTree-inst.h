@@ -188,7 +188,7 @@ namespace gtsam {
    */
   template<class CLIQUE>
   BayesTree<CLIQUE>::~BayesTree() {
-#define USE_OLD_DTOR 0
+#define USE_OLD_DTOR 1
 #if USE_OLD_DTOR
     /* Because tree nodes are hold by both root_ and nodes_, we need to clear nodes_ manually first and
      * reduce the reference count of each node by 1. Otherwise, the nodes will not be properly deleted

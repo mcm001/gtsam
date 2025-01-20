@@ -107,8 +107,8 @@ int main() {
     chrono::duration<double, std::micro> timeUsed1 = t2 - t1;
     
     // print basically once per second at 100hz odometry
-    if (i % 100 == 0) {
-      cout << i << "," << numFactors << "," << timeUsed1.count() << endl;
-    }
+    // if (i % 100 == 0) {
+    //   cout << i << "," << numFactors << "," << timeUsed1.count() << endl;
+    // }
   }
 }
