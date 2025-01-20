@@ -21,7 +21,7 @@ using symbol_shorthand::K;
 using symbol_shorthand::L;
 using symbol_shorthand::X;
 
-int main() {
+void do_main() {
   // white nose generation
   std::random_device rd{};
   std::mt19937 gen{rd()};
@@ -73,7 +73,7 @@ int main() {
 
   size_t numFactors = 0;
 
-  cout << "iteration,Num factors,time_us" << endl;
+  chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
   for (int i = 0; i < 50 * 1000; i++) {
     // cout << "========================" << endl << "Iteration " << i << endl;
 
@@ -98,17 +98,21 @@ int main() {
 
     numFactors += graph.size();
 
-    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     isam.update(graph, initialEstimate);
-    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
 
     // isam.calculateEstimate().print("");
 
-    chrono::duration<double, std::micro> timeUsed1 = t2 - t1;
     
     // print basically once per second at 100hz odometry
     // if (i % 100 == 0) {
     //   cout << i << "," << numFactors << "," << timeUsed1.count() << endl;
     // }
   }
+  chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
+  chrono::duration<double, std::micro> timeUsed1 = t2 - t1;
+  cout << timeUsed1.count() << endl;
+}
+
+int main() {
+  for (int i = 0; i < 10; i++) do_main();
 }
